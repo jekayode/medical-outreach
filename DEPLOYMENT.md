@@ -193,6 +193,18 @@ Backups are written under **`storage/backups/`** as gzipped SQL dumps. For PRD ย
 | DB backup skipped | `DB_CONNECTION=mysql`; `mysqldump` installed; credentials in `.env` |
 | Tablets cannot connect | Firewall (`ufw allow 80/tcp`), Wi-Fi VLAN, wrong IP |
 
+## 12. Docker / container image builds (CI)
+
+**Filament requires the PHP `intl` extension.** If `composer install` fails with `ext-intl` missing, install **`php-intl`** on the host (see ยง2) or use the **`Dockerfile`** in this repository, which compiles `intl` and other common extensions.
+
+Build example:
+
+```bash
+docker build -t medical-outreach:latest .
+```
+
+Your platform (Laravel Cloud, GitHub Actions, Fly.io, etc.) must either use this Dockerfile or install **`ext-intl`** in its PHP runtime before running Composer.
+
 ---
 
 *Phase 1E in the PRD (dry run, staff one-pagers) is process and training, not additional application code.*
