@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Global brand tokens (aligned with Elementor / design system).
+ * Use Tailwind `brand-*` utilities in views; variables available for custom CSS.
+ */
+@layer base {
+    :root {
+        --e-global-color-primary: #f1592a;
+        --e-global-color-secondary: #9dc83b;
+        --e-global-color-text: #606060;
+        --e-global-color-accent: #ffac93;
+        --e-global-color-2df8a20: #1e1e1e;
+        --e-global-color-a82e17b: #ffa589;
+    }
+}
