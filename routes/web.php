@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DashboardRedirectController;
 use App\Livewire\Stations\CheckIn;
 use App\Livewire\Stations\Counselling;
 use App\Livewire\Stations\DentalCare;
@@ -8,14 +9,13 @@ use App\Livewire\Stations\EyeCare;
 use App\Livewire\Stations\Lab;
 use App\Livewire\Stations\Pharmacy;
 use App\Livewire\Stations\Vitals;
-use App\Support\RoleLandingUrl;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
 
-Route::get('/dashboard', function () {
-    return redirect()->to(RoleLandingUrl::home(auth()->user()));
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', DashboardRedirectController::class)
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::view('profile', 'profile')
     ->middleware(['auth'])

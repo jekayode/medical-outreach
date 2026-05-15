@@ -228,6 +228,16 @@ Optional: `LOG_STDERR_FORMATTER=\Monolog\Formatter\JsonFormatter` for structured
 
 Laravel’s scheduler needs a **separate cron service** or Railway **Cron** job running `php artisan schedule:run` every minute (see [Railway Laravel guide](https://docs.railway.com/guides/laravel)). The app service alone does not run cron.
 
+This repo includes **`railway/`** helper scripts (executable):
+
+| Script | Purpose |
+|--------|---------|
+| `railway/init-app.sh` | Migrations + `optimize:clear` + config/event/route/view cache (use as **Pre-Deploy Command** on the app service, e.g. `chmod +x ./railway/init-app.sh && sh ./railway/init-app.sh`) |
+| `railway/run-worker.sh` | `php artisan queue:work` (**Custom Start Command** on a worker service) |
+| `railway/run-cron.sh` | Runs `schedule:run` every 60s in a loop (**Custom Start Command** on a cron service) |
+
+Set **`QUEUE_CONNECTION=database`** (or `redis` if you add Redis) on the worker service so jobs are persisted.
+
 ---
 
 *Phase 1E in the PRD (dry run, staff one-pagers) is process and training, not additional application code.*
