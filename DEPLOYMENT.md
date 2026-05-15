@@ -193,13 +193,59 @@ Backups are written under **`storage/backups/`** as gzipped SQL dumps. For PRD �
 | DB backup skipped | `DB_CONNECTION=mysql`; `mysqldump` installed; credentials in `.env` |
 | Tablets cannot connect | Firewall (`ufw allow 80/tcp`), Wi-Fi VLAN, wrong IP |
 
-## 12. Railway (GitHub deploy)
+## 12. Laravel Cloud
+
+[Laravel Cloud](https://cloud.laravel.com/) is the recommended hosted option for this app. New environments default to **PHP 8.5**, which **breaks the build** because **Maatwebsite Excel** depends on **PhpSpreadsheet 1.x**, which requires **`php < 8.5.0`**.
+
+### Fix the build error (`phpoffice/phpspreadsheet` / PHP 8.5)
+
+1. In the Laravel Cloud dashboard, open your environment → **General settings** → **PHP version** → select **8.4** (not 8.5). Redeploy.  
+   Docs: [Environments — PHP version](https://cloud.laravel.com/docs/environments#php-version)
+
+2. This repo pins Composer to **`>=8.4.0 <8.5.0`** so `composer install` fails fast if the platform uses 8.5.
+
+### Suggested build / deploy commands
+
+**Build** (example):
+
+```bash
+composer install --no-dev --optimize-autoloader --no-interaction
+npm ci
+npm run build
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
+
+**Deploy** (example):
+
+```bash
+php artisan migrate --force --no-interaction
+```
+
+Do **not** run `optimize:clear` on deploy (Laravel Cloud advises against it). Queue workers restart automatically after deploy.
+
+### Environment variables
+
+| Variable | Notes |
+|----------|--------|
+| `APP_KEY` | Required |
+| `APP_URL` | Your `*.laravel.cloud` or custom domain |
+| `QUEUE_CONNECTION` | `database` (unless you attach Redis and configure it) |
+| `CACHE_STORE` | `database` or a Cloud KV store |
+| `LOG_CHANNEL` | `stderr` or Cloud’s logging stack |
+
+Extensions **intl**, **zip**, and **gd** are available on Laravel Cloud (required for Filament and Excel).
+
+---
+
+## 13. Railway (GitHub deploy)
 
 Railway’s current PHP builder is **[Railpack](https://railpack.com/languages/php)** (FrankenPHP + Caddy, document root `public/`). This repo includes **`railway.toml`** so the service uses **Railpack** explicitly and health checks **`/up`**.
 
 ### PHP version (Symfony 8 / Laravel 13)
 
-`composer.json` requires **`php: ^8.4`**. Symfony Console v8 (pulled in via Laravel’s dev tooling such as Collision) needs PHP **8.4+**. Railpack reads Composer and selects a matching PHP runtime—**do not** pin the service to PHP 8.3 in the dashboard if it overrides Composer.
+`composer.json` requires **PHP 8.4.x** (`>=8.4.0 <8.5.0`). Symfony Console v8 needs PHP **8.4+**; PhpSpreadsheet needs a version **below 8.5**. Railpack reads Composer when possible—**do not** pin the service to PHP 8.3 in the dashboard if it overrides Composer.
 
 ### Filament / `ext-intl`
 
