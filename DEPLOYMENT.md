@@ -12,12 +12,12 @@ HTTPS on the LAN is optional per PRD; use **HTTP** only if you accept browser �
 
 ## 2. System packages
 
-Install PHP (8.3+), extensions commonly required by Laravel + Filament, Nginx, MySQL client/server tools, Node (for building assets), Git, and `mysqldump` (usually in `mysql-client`):
+Install PHP (8.4+), extensions commonly required by Laravel + Filament, Nginx, MySQL client/server tools, Node (for building assets), Git, and `mysqldump` (usually in `mysql-client`):
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y nginx mysql-server php-fpm php-cli php-mysql php-xml php-mbstring \
-  php-curl php-zip php-bcmath php-intl php-gd php-sqlite3 unzip git curl \
+sudo apt install -y nginx mysql-server php8.4-fpm php8.4-cli php8.4-mysql php8.4-xml php8.4-mbstring \
+  php8.4-curl php8.4-zip php8.4-bcmath php8.4-intl php8.4-gd php8.4-sqlite3 unzip git curl \
   mysql-client
 ```
 
@@ -97,7 +97,7 @@ Seed roles/users only if you intend to (e.g. first admin); do not run demo seede
 Restart after PHP or pool changes:
 
 ```bash
-sudo systemctl restart php8.3-fpm
+sudo systemctl restart php8.4-fpm
 ```
 
 (Adjust version if your `php-fpm` package differs.)
@@ -130,7 +130,7 @@ server {
     error_page 404 /index.php;
 
     location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
         fastcgi_hide_header X-Powered-By;
@@ -187,7 +187,7 @@ Backups are written under **`storage/backups/`** as gzipped SQL dumps. For PRD �
 
 | Symptom | Things to check |
 |--------|-------------------|
-| 502 from Nginx | PHP-FPM socket path/version; `sudo journalctl -u php8.3-fpm -n 50` |
+| 502 from Nginx | PHP-FPM socket path/version; `sudo journalctl -u php8.4-fpm -n 50` |
 | 500 from Laravel | `storage/logs/laravel.log`, file permissions on `storage/` |
 | Blank CSS/JS | Run `npm run build`; `APP_URL` matches how users open the site |
 | DB backup skipped | `DB_CONNECTION=mysql`; `mysqldump` installed; credentials in `.env` |
@@ -197,9 +197,13 @@ Backups are written under **`storage/backups/`** as gzipped SQL dumps. For PRD �
 
 Railway’s current PHP builder is **[Railpack](https://railpack.com/languages/php)** (FrankenPHP + Caddy, document root `public/`). This repo includes **`railway.toml`** so the service uses **Railpack** explicitly and health checks **`/up`**.
 
+### PHP version (Symfony 8 / Laravel 13)
+
+`composer.json` requires **`php: ^8.4`**. Symfony Console v8 (pulled in via Laravel’s dev tooling such as Collision) needs PHP **8.4+**. Railpack reads Composer and selects a matching PHP runtime—**do not** pin the service to PHP 8.3 in the dashboard if it overrides Composer.
+
 ### Filament / `ext-intl`
 
-1. **`composer.json` already requires `"ext-intl": "*"`** — Railpack installs PHP extensions declared there. Commit and push so the lock file matches.
+1. **`composer.json` requires `"ext-intl": "*"`** — Railpack installs PHP extensions declared there. Commit and push so the lock file matches.
 2. If a build still reports missing `intl`, set a Railway variable (service **Variables**):
    - **`RAILPACK_PHP_EXTENSIONS=intl`**  
    (Comma‑separate if you add more, e.g. `intl,redis`.)
