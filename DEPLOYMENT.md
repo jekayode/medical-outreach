@@ -193,17 +193,36 @@ Backups are written under **`storage/backups/`** as gzipped SQL dumps. For PRD �
 | DB backup skipped | `DB_CONNECTION=mysql`; `mysqldump` installed; credentials in `.env` |
 | Tablets cannot connect | Firewall (`ufw allow 80/tcp`), Wi-Fi VLAN, wrong IP |
 
-## 12. Docker / container image builds (CI)
+## 12. Railway (GitHub deploy)
 
-**Filament requires the PHP `intl` extension.** If `composer install` fails with `ext-intl` missing, install **`php-intl`** on the host (see §2) or use the **`Dockerfile`** in this repository, which compiles `intl` and other common extensions.
+Railway’s current PHP builder is **[Railpack](https://railpack.com/languages/php)** (FrankenPHP + Caddy, document root `public/`). This repo includes **`railway.toml`** so the service uses **Railpack** explicitly and health checks **`/up`**.
 
-Build example:
+### Filament / `ext-intl`
 
-```bash
-docker build -t medical-outreach:latest .
-```
+1. **`composer.json` already requires `"ext-intl": "*"`** — Railpack installs PHP extensions declared there. Commit and push so the lock file matches.
+2. If a build still reports missing `intl`, set a Railway variable (service **Variables**):
+   - **`RAILPACK_PHP_EXTENSIONS=intl`**  
+   (Comma‑separate if you add more, e.g. `intl,redis`.)
 
-Your platform (Laravel Cloud, GitHub Actions, Fly.io, etc.) must either use this Dockerfile or install **`ext-intl`** in its PHP runtime before running Composer.
+### Avoid a bare root `Dockerfile`
+
+If a **`Dockerfile`** exists at the repository root, **Railway will use it instead of Railpack**. A minimal PHP‑CLI image has no FrankenPHP/Caddy and is the wrong fit for a normal web service. Prefer **no root Dockerfile** (or a complete production image + custom start) so **`railway.toml`** + Railpack apply.
+
+### Recommended Railway variables
+
+| Variable | Purpose |
+|----------|---------|
+| `APP_KEY` | From `php artisan key:generate` (base64) |
+| `APP_URL` | Your Railway public URL (e.g. `https://your-app.up.railway.app`) |
+| `DATABASE_URL` | From Railway MySQL/Postgres plugin, or compose `DB_*` manually |
+| `LOG_CHANNEL` | `stderr` so logs show in Railway ([docs](https://docs.railway.com/guides/laravel#logging)) |
+| `RAILPACK_PHP_EXTENSIONS` | `intl` only if needed (see above) |
+
+Optional: `LOG_STDERR_FORMATTER=\Monolog\Formatter\JsonFormatter` for structured logs.
+
+### Scheduler on Railway
+
+Laravel’s scheduler needs a **separate cron service** or Railway **Cron** job running `php artisan schedule:run` every minute (see [Railway Laravel guide](https://docs.railway.com/guides/laravel)). The app service alone does not run cron.
 
 ---
 

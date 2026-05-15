@@ -1,0 +1,10 @@
+# Railway + GitHub: config-as-code (https://docs.railway.com/config-as-code)
+# Use Railpack (FrankenPHP + Laravel defaults). Do not add a root Dockerfile unless it
+# includes a real app server—Railway always prefers Dockerfile over Railpack when present.
+
+[build]
+builder = "RAILPACK"
+
+[deploy]
+healthcheckPath = "/up"
+healthcheckTimeout = 120
