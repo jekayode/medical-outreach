@@ -17,16 +17,16 @@ class DemoVisitSeeder extends Seeder
 {
     public function run(): void
     {
-        $outreach = Outreach::query()->where('name', 'Demo Medical Outreach')->first();
+        $outreach = Outreach::query()->where('name', OutreachSeeder::NAME)->first();
         $beneficiary = Beneficiary::query()->orderBy('created_at')->first();
-        $user = User::query()->where('email', 'checkin@example.com')->first();
+        $user = User::query()->where('email', 'ayomideajisefinni@gmail.com')->first();
 
         if (! $outreach || ! $beneficiary || ! $user) {
             return;
         }
 
         $visit = Visit::query()->updateOrCreate(
-            ['check_in_code' => 'MOA-0001'],
+            ['check_in_code' => 'LPF-0001'],
             [
                 'beneficiary_id' => $beneficiary->getKey(),
                 'outreach_id' => $outreach->getKey(),

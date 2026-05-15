@@ -8,16 +8,18 @@ use Illuminate\Database\Seeder;
 
 class OutreachSeeder extends Seeder
 {
+    public const NAME = 'LifePointe Free Medical Outreach';
+
     public function run(): void
     {
         Outreach::query()->updateOrCreate(
-            ['name' => 'Demo Medical Outreach'],
+            ['name' => self::NAME],
             [
-                'name' => 'Demo Medical Outreach',
-                'location' => 'Demo Venue',
-                'start_date' => now()->toDateString(),
-                'end_date' => now()->addDay()->toDateString(),
-                'code_prefix' => 'MOA',
+                'name' => self::NAME,
+                'location' => 'Synlab, Km 26 DAT Mall, Sangotedo, Lagos',
+                'start_date' => '2026-05-16',
+                'end_date' => '2026-05-16',
+                'code_prefix' => 'LPF',
                 'status' => OutreachStatus::Active,
                 'next_check_in_sequence' => 0,
                 'notes' => null,

@@ -13,20 +13,41 @@ class UserSeeder extends Seeder
         $password = Hash::make('password');
 
         $users = [
-            ['name' => 'Admin User', 'email' => 'admin@example.com', 'role' => 'admin'],
-            ['name' => 'Check-in Staff', 'email' => 'checkin@example.com', 'role' => 'check_in'],
-            ['name' => 'Nurse', 'email' => 'nurse@example.com', 'role' => 'nurse'],
-            ['name' => 'Doctor', 'email' => 'doctor@example.com', 'role' => 'doctor'],
-            ['name' => 'Lab Tech', 'email' => 'lab@example.com', 'role' => 'lab'],
-            ['name' => 'Pharmacist', 'email' => 'pharmacy@example.com', 'role' => 'pharmacist'],
-            ['name' => 'Eye Care', 'email' => 'eye@example.com', 'role' => 'eye_care'],
-            ['name' => 'Dental Care', 'email' => 'dental@example.com', 'role' => 'dental_care'],
-            ['name' => 'Counsellor', 'email' => 'counsellor@example.com', 'role' => 'counsellor'],
+            [
+                'name' => 'Ayomide Ajisefinni',
+                'email' => 'ayomideajisefinni@gmail.com',
+                'roles' => ['admin', 'check_in'],
+            ],
+            [
+                'name' => 'Mobolaji Ade',
+                'email' => 'worshipoutlaw@gmail.com',
+                'roles' => ['nurse'],
+            ],
+            [
+                'name' => 'Esther Olajitan',
+                'email' => 'estherolajitan@gmail.com',
+                'roles' => ['doctor', 'eye_care', 'dental_care'],
+            ],
+            [
+                'name' => 'Rejoice Idornigie (Eshiema)',
+                'email' => 'ridornigie@gmail.com',
+                'roles' => ['pharmacist'],
+            ],
+            [
+                'name' => 'Dafe Eyoufe',
+                'email' => 'setopgroup@gmail.com',
+                'roles' => ['counsellor'],
+            ],
+            [
+                'name' => 'Emmanuel Joseph',
+                'email' => 'hi@hekayode.com',
+                'roles' => ['admin'],
+            ],
         ];
 
         foreach ($users as $row) {
             $user = User::query()->updateOrCreate(
-                ['email' => $row['email']],
+                ['email' => strtolower($row['email'])],
                 [
                     'name' => $row['name'],
                     'password' => $password,
@@ -34,7 +55,7 @@ class UserSeeder extends Seeder
                     'email_verified_at' => now(),
                 ],
             );
-            $user->syncRoles([$row['role']]);
+            $user->syncRoles($row['roles']);
         }
     }
 }
