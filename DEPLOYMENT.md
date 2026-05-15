@@ -203,10 +203,10 @@ Railway’s current PHP builder is **[Railpack](https://railpack.com/languages/p
 
 ### Filament / `ext-intl`
 
-1. **`composer.json` requires `"ext-intl": "*"`** — Railpack installs PHP extensions declared there. Commit and push so the lock file matches.
-2. If a build still reports missing `intl`, set a Railway variable (service **Variables**):
-   - **`RAILPACK_PHP_EXTENSIONS=intl`**  
-   (Comma‑separate if you add more, e.g. `intl,redis`.)
+1. **`composer.json` requires `"ext-intl"`, `"ext-zip"`, and `"ext-gd"`** — Railpack installs PHP extensions declared there (needed by Filament / OpenSpout and Maatwebsite Excel / PhpSpreadsheet). Commit and push so the lock file matches.
+2. If a build still reports missing extensions, set a Railway variable (service **Variables**):
+   - **`RAILPACK_PHP_EXTENSIONS=intl,zip,gd`**  
+   (Adjust if you add more, e.g. `intl,zip,gd,redis`.)
 
 ### Avoid a bare root `Dockerfile`
 
@@ -220,7 +220,7 @@ If a **`Dockerfile`** exists at the repository root, **Railway will use it inste
 | `APP_URL` | Your Railway public URL (e.g. `https://your-app.up.railway.app`) |
 | `DATABASE_URL` | From Railway MySQL/Postgres plugin, or compose `DB_*` manually |
 | `LOG_CHANNEL` | `stderr` so logs show in Railway ([docs](https://docs.railway.com/guides/laravel#logging)) |
-| `RAILPACK_PHP_EXTENSIONS` | `intl` only if needed (see above) |
+| `RAILPACK_PHP_EXTENSIONS` | Fallback: `intl,zip,gd` if Railpack skips any extension from Composer |
 
 Optional: `LOG_STDERR_FORMATTER=\Monolog\Formatter\JsonFormatter` for structured logs.
 
