@@ -93,6 +93,7 @@ final class CheckInSearchService
                 'gender_value' => $beneficiary->gender->value,
                 'gender_label' => Str::headline($beneficiary->gender->value),
                 'age' => $beneficiary->date_of_birth?->age,
+                'phone' => $beneficiary->phone,
                 'interventions' => [],
             ];
         });

@@ -102,6 +102,7 @@ final class StationBeneficiarySearch
                 'gender_value' => $beneficiary->gender->value,
                 'gender_label' => Str::headline($beneficiary->gender->value),
                 'age' => $beneficiary->date_of_birth?->age,
+                'phone' => $beneficiary->phone,
                 'interventions' => $visit->interventions->map(function ($intervention): array {
                     return [
                         'type_value' => $intervention->type->value,

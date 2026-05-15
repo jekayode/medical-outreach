@@ -74,6 +74,9 @@
                                     @if (($row['age'] ?? null) !== null)
                                         · {{ __(':age yrs', ['age' => $row['age']]) }}
                                     @endif
+                                    @if (! empty($row['phone']))
+                                        · {{ $row['phone'] }}
+                                    @endif
                                 </div>
                             </div>
                             <div class="flex flex-wrap gap-2 shrink-0">
