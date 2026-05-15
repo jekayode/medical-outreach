@@ -221,8 +221,19 @@ If a **`Dockerfile`** exists at the repository root, **Railway will use it inste
 | `DATABASE_URL` | From Railway MySQL/Postgres plugin, or compose `DB_*` manually |
 | `LOG_CHANNEL` | `stderr` so logs show in Railway ([docs](https://docs.railway.com/guides/laravel#logging)) |
 | `RAILPACK_PHP_EXTENSIONS` | Fallback: `intl,zip,gd` if Railpack skips any extension from Composer |
+| `RAILPACK_SKIP_MIGRATIONS` | `true` — migrations run only in **`railway/init-app.sh`** (pre-deploy), not on every container boot |
 
 Optional: `LOG_STDERR_FORMATTER=\Monolog\Formatter\JsonFormatter` for structured logs.
+
+**Do not run `php artisan migrate` in both pre-deploy and a custom start command** (`start.sh` no longer migrates). Running migrate twice causes `Table 'permissions' already exists` (SQLSTATE 42S01).
+
+If the database is already in a bad state (tables exist but `migrations` is out of sync), use Railway’s shell / one-off command:
+
+```bash
+php artisan migrate:status
+```
+
+On a **throwaway** staging database you can reset with `php artisan migrate:fresh --force` (deletes all data). On production, fix the `migrations` table or restore from backup instead of `fresh`.
 
 ### Scheduler on Railway
 
@@ -236,7 +247,14 @@ This repo includes **`railway/`** helper scripts (executable):
 | `railway/run-worker.sh` | `php artisan queue:work` (**Custom Start Command** on a worker service) |
 | `railway/run-cron.sh` | Runs `schedule:run` every 60s in a loop (**Custom Start Command** on a cron service) |
 
-Set **`QUEUE_CONNECTION=database`** (or `redis` if you add Redis) on the worker service so jobs are persisted.
+Set these on **app, worker, and cron** services (Railway’s Redis plugin often sets `QUEUE_CONNECTION=redis` and `REDIS_CLIENT=predis`, which breaks the worker unless you use Redis everywhere):
+
+| Variable | Recommended value |
+|----------|-------------------|
+| `QUEUE_CONNECTION` | `database` |
+| `CACHE_STORE` | `database` |
+
+`railway/run-worker.sh` runs `queue:work database` explicitly. The app also ships **`predis/predis`** if you intentionally use Redis with `REDIS_CLIENT=predis`.
 
 ---
 

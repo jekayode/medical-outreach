@@ -8,3 +8,5 @@ builder = "RAILPACK"
 [deploy]
 healthcheckPath = "/up"
 healthcheckTimeout = 120
+# Migrations run in railway/init-app.sh (pre-deploy). Skip Railpack's duplicate migrate on boot.
+# Set the same variable in the Railway dashboard if config-as-code is not applied.

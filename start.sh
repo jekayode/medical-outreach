@@ -1,4 +1,15 @@
 #!/bin/bash
-# Make sure this file has executable permissions, run `chmod +x start.sh`
-# Run migrations, set up nginx conf and run nginx
-php artisan migrate --force && node /assets/scripts/prestart.mjs /assets/nginx.template.conf /nginx.conf && (php-fpm -y /assets/php-fpm.conf & nginx -c /nginx.conf)
+# Container start (Railway). Migrations run once in railway/init-app.sh (pre-deploy)—not here.
+# Make sure this file has executable permissions: chmod +x start.sh
+set -euo pipefail
+
+node /assets/scripts/prestart.mjs /assets/nginx.template.conf /nginx.conf
+php-fpm -y /assets/php-fpm.conf &
+exec nginx -c /nginx.conf
+
+php artisan migrate --force --no-interaction
+php artisan optimize:clear --no-interaction
+php artisan config:cache --no-interaction
+php artisan event:cache --no-interaction
+php artisan route:cache --no-interaction
+php artisan view:cache --no-interaction
