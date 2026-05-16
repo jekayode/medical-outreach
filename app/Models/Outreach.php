@@ -4,13 +4,35 @@ namespace App\Models;
 
 use App\Enums\OutreachStatus;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Validation\ValidationException;
 
 class Outreach extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
+
+    protected static function booted(): void
+    {
+        static::saving(function (Outreach $outreach): void {
+            if ($outreach->status !== OutreachStatus::Active) {
+                return;
+            }
+
+            $conflict = static::query()
+                ->where('status', OutreachStatus::Active)
+                ->where('id', '!=', $outreach->getKey() ?? '')
+                ->exists();
+
+            if ($conflict) {
+                throw ValidationException::withMessages([
+                    'status' => __('Another outreach is already active. Close it before activating this one.'),
+                ]);
+            }
+        });
+    }
 
     protected $fillable = [
         'name',

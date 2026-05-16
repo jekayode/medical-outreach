@@ -8,7 +8,6 @@ use App\Enums\InterventionStatus;
 use App\Enums\OutreachStatus;
 use App\Models\Intervention;
 use App\Models\Outreach;
-use App\Models\Prescription;
 use App\Models\PrescriptionItem;
 use App\Models\User;
 use App\Models\Visit;
@@ -52,7 +51,7 @@ class Pharmacy extends StationPage
         $this->hydrateItemDispenseFromSelection();
     }
 
-    public function saveDispense(PharmacyDispenseService $service): void
+    public function saveDispense(PharmacyDispenseService $service, bool $referForCounselling = false): void
     {
         $this->resetErrorBag();
         $this->successMessage = null;
@@ -91,7 +90,7 @@ class Pharmacy extends StationPage
         }
 
         try {
-            $service->record($intervention, $user, $activeOutreach, $this->itemDispense);
+            $service->record($intervention, $user, $activeOutreach, $this->itemDispense, $referForCounselling);
         } catch (ValidationException $exception) {
             $this->setErrorBag($exception->validator->getMessageBag());
 
@@ -101,7 +100,10 @@ class Pharmacy extends StationPage
         $this->selectedInterventionId = null;
         $this->selectedVisitId = null;
         $this->itemDispense = [];
-        $this->successMessage = __('Dispense recorded. This prescription line is complete.');
+
+        $this->successMessage = $referForCounselling
+            ? __('Dispense recorded. Patient referred to counselling.')
+            : __('Dispense recorded. Visit complete.');
     }
 
     protected function stationHeading(): string

@@ -10,6 +10,7 @@ use App\Models\Outreach;
 use App\Models\User;
 use App\Models\Visit;
 use App\Services\VitalsRecordingService;
+use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
@@ -26,7 +27,6 @@ class Vitals extends StationPage
         'temperature' => '',
         'weight_kg' => '',
         'height_cm' => '',
-        'blood_glucose' => '',
         'hiv_status' => '',
         'notes' => '',
     ];
@@ -80,7 +80,6 @@ class Vitals extends StationPage
             'form.height_cm' => ['required', 'numeric', 'between:30,272'],
             'form.blood_pressure_systolic' => ['nullable', 'integer', 'between:50,300'],
             'form.blood_pressure_diastolic' => ['nullable', 'integer', 'between:30,200'],
-            'form.blood_glucose' => ['nullable', 'numeric', 'min:0'],
             'form.hiv_status' => ['nullable', Rule::enum(HivStatus::class)],
             'form.notes' => ['nullable', 'string', 'max:2000'],
             'interventionSelections' => ['required', 'array', 'min:1'],
@@ -138,7 +137,7 @@ class Vitals extends StationPage
         return __('Vitals station');
     }
 
-    public function render(): \Illuminate\Contracts\View\View
+    public function render(): View
     {
         $activeOutreach = Outreach::query()->where('status', OutreachStatus::Active)->first();
 
@@ -180,7 +179,6 @@ class Vitals extends StationPage
             'temperature' => '',
             'weight_kg' => '',
             'height_cm' => '',
-            'blood_glucose' => '',
             'hiv_status' => '',
             'notes' => '',
         ];

@@ -26,6 +26,7 @@ class Vitals extends Model
         'blood_glucose',
         'hiv_status',
         'notes',
+        'lab_notes',
         'taken_at',
     ];
 

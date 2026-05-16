@@ -123,7 +123,7 @@ class PharmacyStationTest extends TestCase
         return ['outreach' => $outreach, 'visit' => $visit, 'pharmacist' => $pharmacist, 'intervention' => $intervention];
     }
 
-    public function test_pharmacy_dispense_service_updates_items_and_advances_intervention(): void
+    public function test_pharmacy_dispense_service_updates_items_and_completes_visit(): void
     {
         ['outreach' => $outreach, 'visit' => $visit, 'pharmacist' => $pharmacist, 'intervention' => $intervention] = $this->outreachVisitPharmacistAndAwaitingPharmacyIntervention();
 
@@ -147,9 +147,29 @@ class PharmacyStationTest extends TestCase
         $this->assertSame(InterventionStatus::Completed, $intervention->fresh()->status);
         $this->assertNotNull($intervention->fresh()->completed_at);
         $this->assertSame(VisitStatus::Completed, $visit->fresh()->status);
+        $this->assertSame(VisitStage::Completed, $visit->fresh()->current_stage);
     }
 
-    public function test_pharmacy_livewire_save_dispense(): void
+    public function test_pharmacy_dispense_service_refers_patient_to_counselling(): void
+    {
+        ['outreach' => $outreach, 'visit' => $visit, 'pharmacist' => $pharmacist, 'intervention' => $intervention] = $this->outreachVisitPharmacistAndAwaitingPharmacyIntervention();
+
+        $item = PrescriptionItem::query()->first();
+        $this->assertNotNull($item);
+
+        app(PharmacyDispenseService::class)->record($intervention, $pharmacist, $outreach, [
+            $item->getKey() => [
+                'availability' => AvailabilityStatus::Available->value,
+                'dispensed_status' => DispensedStatus::Dispensed->value,
+            ],
+        ], referForCounselling: true);
+
+        $this->assertSame(InterventionStatus::AwaitingCounselling, $intervention->fresh()->status);
+        $this->assertSame(VisitStage::Counselling, $visit->fresh()->current_stage);
+        $this->assertSame(VisitStatus::Open, $visit->fresh()->status);
+    }
+
+    public function test_pharmacy_livewire_save_dispense_no_counselling(): void
     {
         ['outreach' => $outreach, 'visit' => $visit, 'pharmacist' => $pharmacist, 'intervention' => $intervention] = $this->outreachVisitPharmacistAndAwaitingPharmacyIntervention();
 
@@ -166,11 +186,37 @@ class PharmacyStationTest extends TestCase
                     'dispensed_status' => DispensedStatus::Pending->value,
                 ],
             ])
-            ->call('saveDispense')
+            ->call('saveDispense', false)
             ->assertHasNoErrors();
 
         $this->assertSame(AvailabilityStatus::Partial, $item->fresh()->availability);
         $this->assertSame(InterventionStatus::Completed, $intervention->fresh()->status);
+        $this->assertSame(VisitStatus::Completed, $visit->fresh()->status);
+    }
+
+    public function test_pharmacy_livewire_save_dispense_with_counselling_referral(): void
+    {
+        ['outreach' => $outreach, 'visit' => $visit, 'pharmacist' => $pharmacist, 'intervention' => $intervention] = $this->outreachVisitPharmacistAndAwaitingPharmacyIntervention();
+
+        $item = PrescriptionItem::query()->first();
+        $this->assertNotNull($item);
+
+        Livewire::actingAs($pharmacist)
+            ->test(Pharmacy::class)
+            ->set('selectedVisitId', $visit->getKey())
+            ->set('selectedInterventionId', $intervention->getKey())
+            ->set('itemDispense', [
+                $item->getKey() => [
+                    'availability' => AvailabilityStatus::Available->value,
+                    'dispensed_status' => DispensedStatus::Dispensed->value,
+                ],
+            ])
+            ->call('saveDispense', true)
+            ->assertHasNoErrors();
+
+        $this->assertSame(InterventionStatus::AwaitingCounselling, $intervention->fresh()->status);
+        $this->assertSame(VisitStage::Counselling, $visit->fresh()->current_stage);
+        $this->assertSame(VisitStatus::Open, $visit->fresh()->status);
     }
 
     public function test_visit_stays_open_when_another_intervention_on_visit_is_not_completed(): void

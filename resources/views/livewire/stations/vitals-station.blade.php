@@ -137,11 +137,6 @@
                                             @endif
                                         </div>
                                         <div>
-                                            <x-input-label for="glucose" :value="__('Blood glucose')" />
-                                            <x-text-input id="glucose" class="block mt-1 w-full" type="number" inputmode="decimal" step="0.1" wire:model="form.blood_glucose" min="0" />
-                                            <x-input-error :messages="$errors->get('form.blood_glucose')" class="mt-2" />
-                                        </div>
-                                        <div>
                                             <x-input-label for="hiv" :value="__('HIV status')" />
                                             <select id="hiv" wire:model="form.hiv_status" class="mt-1 block w-full min-h-11 text-base rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm">
                                                 <option value="">{{ __('Not specified') }}</option>

@@ -108,6 +108,12 @@ final class DoctorConsultationService
         array $labItems,
         array $prescriptionItems,
     ): void {
+        if ($nextAction === ConsultationNextAction::Counselling) {
+            throw ValidationException::withMessages([
+                'nextAction' => __('Refer to counselling from the pharmacy station, not the doctor station.'),
+            ]);
+        }
+
         if ($intervention->status === InterventionStatus::ConsultationReview && $nextAction === ConsultationNextAction::Lab) {
             throw ValidationException::withMessages([
                 'nextAction' => __('Ordering new lab tests is only available before the first lab round.'),

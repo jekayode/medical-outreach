@@ -33,6 +33,46 @@ new class extends Component
                     <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
                     </x-nav-link>
+                    @role('check_in')
+                        <x-nav-link :href="route('stations.check-in')" :active="request()->routeIs('stations.check-in')" wire:navigate>
+                            {{ __('Check-in') }}
+                        </x-nav-link>
+                    @endrole
+                    @role('nurse')
+                        <x-nav-link :href="route('stations.vitals')" :active="request()->routeIs('stations.vitals')" wire:navigate>
+                            {{ __('Vitals') }}
+                        </x-nav-link>
+                    @endrole
+                    @role('doctor')
+                        <x-nav-link :href="route('stations.doctor')" :active="request()->routeIs('stations.doctor')" wire:navigate>
+                            {{ __('Doctor') }}
+                        </x-nav-link>
+                    @endrole
+                    @role('lab')
+                        <x-nav-link :href="route('stations.lab')" :active="request()->routeIs('stations.lab')" wire:navigate>
+                            {{ __('Lab') }}
+                        </x-nav-link>
+                    @endrole
+                    @role('pharmacist')
+                        <x-nav-link :href="route('stations.pharmacy')" :active="request()->routeIs('stations.pharmacy')" wire:navigate>
+                            {{ __('Pharmacy') }}
+                        </x-nav-link>
+                    @endrole
+                    @role('eye_care')
+                        <x-nav-link :href="route('stations.eye-care')" :active="request()->routeIs('stations.eye-care')" wire:navigate>
+                            {{ __('Eye Care') }}
+                        </x-nav-link>
+                    @endrole
+                    @role('dental_care')
+                        <x-nav-link :href="route('stations.dental-care')" :active="request()->routeIs('stations.dental-care')" wire:navigate>
+                            {{ __('Dental Care') }}
+                        </x-nav-link>
+                    @endrole
+                    @role('counsellor')
+                        <x-nav-link :href="route('stations.counselling')" :active="request()->routeIs('stations.counselling')" wire:navigate>
+                            {{ __('Counselling') }}
+                        </x-nav-link>
+                    @endrole
                 </div>
             </div>
 
@@ -84,6 +124,46 @@ new class extends Component
             <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')" wire:navigate>
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
+            @role('check_in')
+                <x-responsive-nav-link :href="route('stations.check-in')" :active="request()->routeIs('stations.check-in')" wire:navigate>
+                    {{ __('Check-in') }}
+                </x-responsive-nav-link>
+            @endrole
+            @role('nurse')
+                <x-responsive-nav-link :href="route('stations.vitals')" :active="request()->routeIs('stations.vitals')" wire:navigate>
+                    {{ __('Vitals') }}
+                </x-responsive-nav-link>
+            @endrole
+            @role('doctor')
+                <x-responsive-nav-link :href="route('stations.doctor')" :active="request()->routeIs('stations.doctor')" wire:navigate>
+                    {{ __('Doctor') }}
+                </x-responsive-nav-link>
+            @endrole
+            @role('lab')
+                <x-responsive-nav-link :href="route('stations.lab')" :active="request()->routeIs('stations.lab')" wire:navigate>
+                    {{ __('Lab') }}
+                </x-responsive-nav-link>
+            @endrole
+            @role('pharmacist')
+                <x-responsive-nav-link :href="route('stations.pharmacy')" :active="request()->routeIs('stations.pharmacy')" wire:navigate>
+                    {{ __('Pharmacy') }}
+                </x-responsive-nav-link>
+            @endrole
+            @role('eye_care')
+                <x-responsive-nav-link :href="route('stations.eye-care')" :active="request()->routeIs('stations.eye-care')" wire:navigate>
+                    {{ __('Eye Care') }}
+                </x-responsive-nav-link>
+            @endrole
+            @role('dental_care')
+                <x-responsive-nav-link :href="route('stations.dental-care')" :active="request()->routeIs('stations.dental-care')" wire:navigate>
+                    {{ __('Dental Care') }}
+                </x-responsive-nav-link>
+            @endrole
+            @role('counsellor')
+                <x-responsive-nav-link :href="route('stations.counselling')" :active="request()->routeIs('stations.counselling')" wire:navigate>
+                    {{ __('Counselling') }}
+                </x-responsive-nav-link>
+            @endrole
         </div>
 
         <!-- Responsive Settings Options -->

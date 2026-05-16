@@ -21,15 +21,22 @@ use Illuminate\Validation\ValidationException;
 final class PharmacyDispenseService
 {
     /**
-     * Persist availability and dispensed status for all prescription lines on this intervention, then mark this intervention line complete.
+     * Persist availability and dispensed status for all prescription lines on this intervention, then route the patient.
      *
-     * Each visit can hold multiple interventions (general consultation, eye care, dental care, etc.); pharmacy only completes the intervention row it is dispensing for. When every intervention on the visit is completed, the visit is closed.
+     * Each visit can hold multiple interventions (general consultation, eye care, dental care, etc.); pharmacy only
+     * completes the intervention row it is dispensing for.
+     *
+     * When $referForCounselling is false (default) the intervention is marked Completed and, if every intervention on
+     * the visit is now complete, the visit is closed.
+     *
+     * When $referForCounselling is true the intervention is instead moved to AwaitingCounselling, the visit stage is
+     * set to Counselling, and the visit remains open so the counselling station can pick it up.
      *
      * @param  array<string, array{availability: string, dispensed_status: string}>  $stateByItemId  prescription_item id => row
      */
-    public function record(Intervention $intervention, User $pharmacist, Outreach $activeOutreach, array $stateByItemId): void
+    public function record(Intervention $intervention, User $pharmacist, Outreach $activeOutreach, array $stateByItemId, bool $referForCounselling = false): void
     {
-        DB::transaction(function () use ($intervention, $pharmacist, $activeOutreach, $stateByItemId): void {
+        DB::transaction(function () use ($intervention, $pharmacist, $activeOutreach, $stateByItemId, $referForCounselling): void {
             $this->assertOutreachActive($activeOutreach);
 
             /** @var Intervention $locked */
@@ -94,30 +101,39 @@ final class PharmacyDispenseService
 
             $now = now();
 
-            $interventionUpdates = [
-                'status' => InterventionStatus::Completed,
-            ];
-
-            if ($locked->completed_at === null) {
-                $interventionUpdates['completed_at'] = $now;
-            }
-
-            $locked->update($interventionUpdates);
-
             /** @var Visit $visit */
             $visit = Visit::query()->whereKey($locked->visit_id)->lockForUpdate()->firstOrFail();
 
-            $hasIncompleteIntervention = Intervention::query()
-                ->where('visit_id', $visit->getKey())
-                ->where('status', '!=', InterventionStatus::Completed)
-                ->exists();
-
-            if (! $hasIncompleteIntervention && $visit->status !== VisitStatus::Completed) {
-                $visit->update([
-                    'status' => VisitStatus::Completed,
-                    'current_stage' => VisitStage::Completed,
-                    'completed_at' => $visit->completed_at ?? $now,
+            if ($referForCounselling) {
+                $locked->update([
+                    'status' => InterventionStatus::AwaitingCounselling,
+                    'completed_at' => $locked->completed_at ?? $now,
                 ]);
+
+                $visit->update(['current_stage' => VisitStage::Counselling]);
+            } else {
+                $interventionUpdates = [
+                    'status' => InterventionStatus::Completed,
+                ];
+
+                if ($locked->completed_at === null) {
+                    $interventionUpdates['completed_at'] = $now;
+                }
+
+                $locked->update($interventionUpdates);
+
+                $hasIncompleteIntervention = Intervention::query()
+                    ->where('visit_id', $visit->getKey())
+                    ->where('status', '!=', InterventionStatus::Completed)
+                    ->exists();
+
+                if (! $hasIncompleteIntervention && $visit->status !== VisitStatus::Completed) {
+                    $visit->update([
+                        'status' => VisitStatus::Completed,
+                        'current_stage' => VisitStage::Completed,
+                        'completed_at' => $visit->completed_at ?? $now,
+                    ]);
+                }
             }
         });
     }

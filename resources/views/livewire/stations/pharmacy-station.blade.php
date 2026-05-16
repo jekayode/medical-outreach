@@ -125,11 +125,7 @@
                                     {{ __('There are no prescription lines to process for this selection.') }}
                                 </div>
                             @else
-                                <form
-                                    wire:submit="saveDispense"
-                                    wire:confirm="{{ __('Save dispense details and send this patient toward counselling?') }}"
-                                    class="space-y-4"
-                                >
+                                <form class="space-y-4">
                                     @error('form')
                                         <div class="text-sm text-red-600">{{ $message }}</div>
                                     @enderror
@@ -189,10 +185,25 @@
                                     </div>
 
                                     <div
-                                        class="sticky bottom-0 z-10 -mx-4 mt-6 flex justify-end border-t border-gray-200 bg-white px-4 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] sm:-mx-6 sm:px-6"
+                                        class="sticky bottom-0 z-10 -mx-4 mt-6 flex flex-wrap justify-end gap-3 border-t border-gray-200 bg-white px-4 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] sm:-mx-6 sm:px-6"
                                     >
-                                        <x-primary-button type="submit" class="px-6">
-                                            {{ __('Save & complete line') }}
+                                        <button
+                                            type="button"
+                                            wire:click="saveDispense(false)"
+                                            wire:confirm="{{ __('Save dispense and complete this visit now?') }}"
+                                            wire:loading.attr="disabled"
+                                            class="inline-flex items-center justify-center min-h-11 px-4 py-2 rounded-md font-semibold text-sm text-white uppercase tracking-wide bg-gray-800 border border-gray-700 shadow-sm hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition ease-in-out duration-150 disabled:opacity-25"
+                                        >
+                                            {{ __('Done — no counselling') }}
+                                        </button>
+                                        <x-primary-button
+                                            type="button"
+                                            wire:click="saveDispense(true)"
+                                            wire:confirm="{{ __('Save dispense and refer this patient to counselling?') }}"
+                                            wire:loading.attr="disabled"
+                                            class="px-6"
+                                        >
+                                            {{ __('Refer for counselling') }}
                                         </x-primary-button>
                                     </div>
                                 </form>

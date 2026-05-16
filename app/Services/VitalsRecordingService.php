@@ -9,8 +9,8 @@ use App\Enums\VisitStage;
 use App\Models\Intervention;
 use App\Models\Outreach;
 use App\Models\User;
-use App\Models\Vitals;
 use App\Models\Visit;
+use App\Models\Vitals;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -66,7 +66,9 @@ final class VitalsRecordingService
                 Intervention::query()->create([
                     'visit_id' => $locked->getKey(),
                     'type' => $type,
-                    'status' => InterventionStatus::Pending,
+                    'status' => $type === InterventionType::GeneralConsultation
+                        ? InterventionStatus::AwaitingLab
+                        : InterventionStatus::Pending,
                 ]);
             }
 

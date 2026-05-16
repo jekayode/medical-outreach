@@ -17,16 +17,5 @@ abstract class StationPage extends Component
         $this->selectedVisitId = $visitId;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    protected function shellData(): array
-    {
-        return [
-            'heading' => $this->stationHeading(),
-            'selectedVisitId' => $this->selectedVisitId,
-        ];
-    }
-
     abstract protected function stationHeading(): string;
 }

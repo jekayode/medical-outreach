@@ -23,12 +23,77 @@ use App\Services\DoctorConsultationService;
 use App\Services\LabResultRecordingService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
 use Tests\TestCase;
 
 class LabStationTest extends TestCase
 {
     use RefreshDatabase;
+
+    /**
+     * @return array{outreach: Outreach, visit: Visit, lab: User, nurse: User, intervention: Intervention}
+     */
+    private function outreachVisitLabAndPreDoctorIntervention(): array
+    {
+        $this->seed(RoleSeeder::class);
+        $nurse = User::factory()->create();
+        $nurse->assignRole('nurse');
+
+        $lab = User::factory()->create();
+        $lab->assignRole('lab');
+
+        $outreach = Outreach::query()->create([
+            'name' => 'Rapid Lab Test Outreach',
+            'location' => 'Hall',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDay()->toDateString(),
+            'code_prefix' => 'RLX',
+            'status' => OutreachStatus::Active,
+            'next_check_in_sequence' => 0,
+        ]);
+
+        $beneficiary = Beneficiary::query()->create([
+            'full_name' => 'Rapid Test Patient',
+            'gender' => Gender::Female,
+            'date_of_birth' => '1990-06-15',
+            'phone' => '08077778888',
+            'email' => null,
+            'residential_address' => '5 Lane',
+            'source' => BeneficiarySource::WalkIn,
+            'imported_at' => null,
+            'created_by_user_id' => null,
+            'medical_consent' => true,
+        ]);
+
+        $visit = Visit::query()->create([
+            'beneficiary_id' => $beneficiary->getKey(),
+            'outreach_id' => $outreach->getKey(),
+            'check_in_code' => 'RLX-0001',
+            'checked_in_at' => now(),
+            'checked_in_by_user_id' => $nurse->getKey(),
+            'current_stage' => VisitStage::VitalsDone,
+            'status' => VisitStatus::Open,
+        ]);
+
+        Vitals::query()->create([
+            'visit_id' => $visit->getKey(),
+            'taken_by_user_id' => $nurse->getKey(),
+            'pulse' => 74,
+            'temperature' => 36.8,
+            'weight_kg' => 60,
+            'height_cm' => 162,
+            'taken_at' => now(),
+        ]);
+
+        $intervention = Intervention::query()->create([
+            'visit_id' => $visit->getKey(),
+            'type' => InterventionType::GeneralConsultation,
+            'status' => InterventionStatus::AwaitingLab,
+        ]);
+
+        return ['outreach' => $outreach, 'visit' => $visit, 'lab' => $lab, 'nurse' => $nurse, 'intervention' => $intervention];
+    }
 
     /**
      * @return array{outreach: Outreach, visit: Visit, lab: User, intervention: Intervention}
@@ -120,6 +185,94 @@ class LabStationTest extends TestCase
         $intervention = $intervention->fresh();
 
         return ['outreach' => $outreach, 'visit' => $visit, 'lab' => $lab, 'intervention' => $intervention];
+    }
+
+    public function test_rapid_blood_glucose_service_records_result_and_advances_to_pending(): void
+    {
+        ['outreach' => $outreach, 'visit' => $visit, 'lab' => $lab, 'intervention' => $intervention] = $this->outreachVisitLabAndPreDoctorIntervention();
+
+        $this->assertSame(InterventionStatus::AwaitingLab, $intervention->status);
+
+        app(LabResultRecordingService::class)->recordRapidBloodGlucose($intervention, $lab, $outreach, 5.4);
+
+        $this->assertSame(InterventionStatus::Pending, $intervention->fresh()->status);
+        $this->assertSame('5.4', (string) $visit->fresh()->vitals->blood_glucose);
+    }
+
+    public function test_rapid_blood_glucose_service_allows_null_glucose(): void
+    {
+        ['outreach' => $outreach, 'lab' => $lab, 'intervention' => $intervention] = $this->outreachVisitLabAndPreDoctorIntervention();
+
+        app(LabResultRecordingService::class)->recordRapidBloodGlucose($intervention, $lab, $outreach, null);
+
+        $this->assertSame(InterventionStatus::Pending, $intervention->fresh()->status);
+    }
+
+    public function test_rapid_blood_glucose_service_rejects_non_general_consultation(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $nurse = User::factory()->create();
+        $nurse->assignRole('nurse');
+        $lab = User::factory()->create();
+        $lab->assignRole('lab');
+
+        $outreach = Outreach::query()->create([
+            'name' => 'Reject Test Outreach',
+            'location' => 'Hall',
+            'start_date' => now()->toDateString(),
+            'end_date' => now()->addDay()->toDateString(),
+            'code_prefix' => 'RJX',
+            'status' => OutreachStatus::Active,
+            'next_check_in_sequence' => 0,
+        ]);
+
+        $beneficiary = Beneficiary::query()->create([
+            'full_name' => 'Eye Patient',
+            'gender' => Gender::Male,
+            'date_of_birth' => '1980-01-01',
+            'phone' => '08000000001',
+            'email' => null,
+            'residential_address' => 'Somewhere',
+            'source' => BeneficiarySource::WalkIn,
+            'imported_at' => null,
+            'created_by_user_id' => null,
+            'medical_consent' => true,
+        ]);
+
+        $visit = Visit::query()->create([
+            'beneficiary_id' => $beneficiary->getKey(),
+            'outreach_id' => $outreach->getKey(),
+            'check_in_code' => 'RJX-0001',
+            'checked_in_at' => now(),
+            'checked_in_by_user_id' => $nurse->getKey(),
+            'current_stage' => VisitStage::VitalsDone,
+            'status' => VisitStatus::Open,
+        ]);
+
+        $eyeIntervention = Intervention::query()->create([
+            'visit_id' => $visit->getKey(),
+            'type' => InterventionType::EyeCare,
+            'status' => InterventionStatus::AwaitingLab,
+        ]);
+
+        $this->expectException(ValidationException::class);
+        app(LabResultRecordingService::class)->recordRapidBloodGlucose($eyeIntervention, $lab, $outreach, 4.0);
+    }
+
+    public function test_lab_livewire_rapid_test_sends_to_doctor_queue(): void
+    {
+        ['outreach' => $outreach, 'visit' => $visit, 'lab' => $lab, 'intervention' => $intervention] = $this->outreachVisitLabAndPreDoctorIntervention();
+
+        Livewire::actingAs($lab)
+            ->test(Lab::class)
+            ->set('selectedVisitId', $visit->getKey())
+            ->set('selectedInterventionId', $intervention->getKey())
+            ->set('rapidBloodGlucose', '5.8')
+            ->call('saveRapidTest')
+            ->assertHasNoErrors();
+
+        $this->assertSame(InterventionStatus::Pending, $intervention->fresh()->status);
+        $this->assertSame('5.8', (string) $visit->fresh()->vitals->blood_glucose);
     }
 
     public function test_lab_result_service_records_results_and_returns_to_doctor_queue(): void

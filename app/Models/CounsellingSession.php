@@ -2,10 +2,26 @@
 
 namespace App\Models;
 
+use App\Enums\InterventionStatus;
+use App\Enums\InterventionType;
+use App\Enums\VisitStage;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Represents a counselling session attached directly to a Visit.
+ *
+ * Unlike clinical interventions (GeneralConsultation, EyeCare, DentalCare) which are
+ * modelled as Intervention records, counselling is visit-scoped. It runs in parallel
+ * with or after clinical interventions and does not need its own Intervention line.
+ * The visit's current_stage transitions through VisitStage::Counselling to track progress,
+ * and Intervention rows use InterventionStatus::AwaitingCounselling to signal the handoff.
+ *
+ * @see InterventionType
+ * @see InterventionStatus::AwaitingCounselling
+ * @see VisitStage::Counselling
+ */
 class CounsellingSession extends Model
 {
     use HasUuids;

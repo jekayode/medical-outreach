@@ -84,7 +84,6 @@ class VitalsStationTest extends TestCase
                 'height_cm' => 175,
                 'blood_pressure_systolic' => null,
                 'blood_pressure_diastolic' => null,
-                'blood_glucose' => null,
                 'hiv_status' => null,
                 'notes' => 'OK',
             ],
@@ -98,10 +97,42 @@ class VitalsStationTest extends TestCase
         ]);
 
         $this->assertSame(2, $visit->fresh()->interventions()->count());
-        $this->assertTrue(
-            $visit->fresh()->interventions->every(fn ($i): bool => $i->status === InterventionStatus::Pending)
-        );
         $this->assertSame(VisitStage::VitalsDone, $visit->fresh()->current_stage);
+    }
+
+    public function test_general_consultation_intervention_starts_as_awaiting_lab(): void
+    {
+        ['outreach' => $outreach, 'visit' => $visit, 'nurse' => $nurse] = $this->outreachVisitAndNurse();
+
+        app(VitalsRecordingService::class)->record(
+            $visit,
+            $nurse,
+            $outreach,
+            ['pulse' => 72, 'temperature' => 36.6, 'weight_kg' => 70, 'height_cm' => 175],
+            [InterventionType::GeneralConsultation->value],
+        );
+
+        $intervention = $visit->fresh()->interventions()->where('type', InterventionType::GeneralConsultation)->first();
+        $this->assertNotNull($intervention);
+        $this->assertSame(InterventionStatus::AwaitingLab, $intervention->status);
+    }
+
+    public function test_eye_care_and_dental_interventions_start_as_pending(): void
+    {
+        ['outreach' => $outreach, 'visit' => $visit, 'nurse' => $nurse] = $this->outreachVisitAndNurse();
+
+        app(VitalsRecordingService::class)->record(
+            $visit,
+            $nurse,
+            $outreach,
+            ['pulse' => 72, 'temperature' => 36.6, 'weight_kg' => 70, 'height_cm' => 175],
+            [InterventionType::EyeCare->value, InterventionType::DentalCare->value],
+        );
+
+        $interventions = $visit->fresh()->interventions;
+        $this->assertTrue(
+            $interventions->every(fn ($i): bool => $i->status === InterventionStatus::Pending)
+        );
     }
 
     public function test_vitals_livewire_save_records_vitals(): void

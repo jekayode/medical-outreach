@@ -258,7 +258,11 @@ class Doctor extends StationPage
         $canOrderLab = $selectedIntervention instanceof Intervention
             && $selectedIntervention->status === InterventionStatus::Pending;
 
-        $availableNextActions = ConsultationNextAction::cases();
+        $availableNextActions = array_values(array_filter(
+            ConsultationNextAction::cases(),
+            fn (ConsultationNextAction $a): bool => $a !== ConsultationNextAction::Counselling
+        ));
+
         if (! $canOrderLab) {
             $availableNextActions = array_values(array_filter(
                 $availableNextActions,

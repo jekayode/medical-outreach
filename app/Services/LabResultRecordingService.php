@@ -12,6 +12,7 @@ use App\Models\LabOrder;
 use App\Models\LabOrderItem;
 use App\Models\Outreach;
 use App\Models\User;
+use App\Models\Visit;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -23,9 +24,9 @@ final class LabResultRecordingService
      *
      * @param  array<string, string>  $resultByItemId  lab_order_item id => result text
      */
-    public function record(Intervention $intervention, User $labUser, Outreach $activeOutreach, array $resultByItemId): void
+    public function record(Intervention $intervention, User $labUser, Outreach $activeOutreach, array $resultByItemId, ?string $notes = null): void
     {
-        DB::transaction(function () use ($intervention, $labUser, $activeOutreach, $resultByItemId): void {
+        DB::transaction(function () use ($intervention, $labUser, $activeOutreach, $resultByItemId, $notes): void {
             $this->assertOutreachActive($activeOutreach);
 
             /** @var Intervention $locked */
@@ -83,6 +84,7 @@ final class LabResultRecordingService
             foreach ($pendingOrders as $order) {
                 $order->update([
                     'status' => LabOrderStatus::Completed,
+                    'notes' => $notes,
                 ]);
             }
 
@@ -90,6 +92,80 @@ final class LabResultRecordingService
                 'status' => InterventionStatus::ConsultationReview,
             ]);
         });
+    }
+
+    /**
+     * Record the mandatory pre-doctor rapid blood glucose result and advance the intervention to Pending (Doctor queue).
+     *
+     * This is the standard first-step lab test done for all Doctor-bound patients after vitals.
+     * The result is stored on the visit's existing vitals record. No LabOrder is created — the
+     * doctor-ordered lab flow (record()) handles that separately.
+     */
+    public function recordRapidBloodGlucose(
+        Intervention $intervention,
+        User $labTech,
+        Outreach $activeOutreach,
+        ?float $bloodGlucose,
+        ?string $notes = null,
+    ): void {
+        DB::transaction(function () use ($intervention, $activeOutreach, $bloodGlucose, $notes): void {
+            $this->assertOutreachActive($activeOutreach);
+
+            /** @var Intervention $locked */
+            $locked = Intervention::query()->whereKey($intervention->getKey())->lockForUpdate()->firstOrFail();
+
+            $this->assertCanRecordRapidTest($locked, $activeOutreach);
+
+            /** @var Visit $visit */
+            $visit = Visit::query()->whereKey($locked->visit_id)->lockForUpdate()->firstOrFail();
+
+            if ($visit->vitals !== null) {
+                $updates = [];
+                if ($bloodGlucose !== null) {
+                    $updates['blood_glucose'] = $bloodGlucose;
+                }
+                if ($notes !== null) {
+                    $updates['lab_notes'] = $notes;
+                }
+                if ($updates !== []) {
+                    $visit->vitals->update($updates);
+                }
+            }
+
+            $locked->update(['status' => InterventionStatus::Pending]);
+        });
+    }
+
+    private function assertCanRecordRapidTest(Intervention $intervention, Outreach $activeOutreach): void
+    {
+        if ($intervention->type !== InterventionType::GeneralConsultation) {
+            throw ValidationException::withMessages([
+                'intervention' => __('Rapid blood glucose testing is only for general consultation patients.'),
+            ]);
+        }
+
+        $visit = $intervention->visit;
+        if ($visit === null || $visit->outreach_id !== $activeOutreach->getKey()) {
+            throw ValidationException::withMessages([
+                'intervention' => __('This intervention does not belong to the active outreach.'),
+            ]);
+        }
+
+        if ($intervention->status !== InterventionStatus::AwaitingLab) {
+            throw ValidationException::withMessages([
+                'intervention' => __('This patient is not awaiting the lab rapid test.'),
+            ]);
+        }
+
+        $hasConsultation = Consultation::query()
+            ->where('intervention_id', $intervention->getKey())
+            ->exists();
+
+        if ($hasConsultation) {
+            throw ValidationException::withMessages([
+                'intervention' => __('This patient has doctor-ordered lab tests — use the results form, not the rapid test form.'),
+            ]);
+        }
     }
 
     private function assertOutreachActive(Outreach $outreach): void

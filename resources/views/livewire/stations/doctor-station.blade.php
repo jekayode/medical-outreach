@@ -6,7 +6,7 @@
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div class="mb-6">
             <h1 class="text-2xl font-semibold text-gray-900">{{ __('General doctor station') }}</h1>
-            <p class="mt-1 text-sm text-gray-600">{{ __('Review vitals, document the consultation, and route the patient to lab, pharmacy, counselling, or completion.') }}</p>
+            <p class="mt-1 text-sm text-gray-600">{{ __('Review vitals and lab results, document the consultation, and route the patient to additional lab tests, pharmacy, or completion.') }}</p>
         </div>
 
         @if ($successMessage)
@@ -139,10 +139,10 @@
                             </div>
                         @else
                             @if (! $isDoneListIntervention && $selectedIntervention->status === \App\Enums\InterventionStatus::ConsultationReview && $selectedIntervention->consultation?->labOrders?->isNotEmpty())
-                                <div class="rounded-lg border border-gray-100 bg-gray-50 p-4">
-                                    <h3 class="text-sm font-semibold text-gray-800 mb-2">{{ __('Lab results') }}</h3>
-                                    <ul class="space-y-3 text-sm">
-                                        @foreach ($selectedIntervention->consultation->labOrders as $order)
+                                <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-3">
+                                    <h3 class="text-sm font-semibold text-gray-800">{{ __('Lab results') }}</h3>
+                                    @foreach ($selectedIntervention->consultation->labOrders as $order)
+                                        <ul class="space-y-3 text-sm">
                                             @foreach ($order->items as $item)
                                                 <li class="border-b border-gray-200 pb-2 last:border-0 last:pb-0" wire:key="lab-{{ $item->getKey() }}">
                                                     <span class="font-medium text-gray-900">{{ $item->test_name }}</span>
@@ -155,8 +155,14 @@
                                                     </div>
                                                 </li>
                                             @endforeach
-                                        @endforeach
-                                    </ul>
+                                        </ul>
+                                        @if ($order->notes)
+                                            <p class="text-sm text-gray-700">
+                                                <span class="font-medium text-gray-500">{{ __('Lab comment:') }}</span>
+                                                {{ $order->notes }}
+                                            </p>
+                                        @endif
+                                    @endforeach
                                 </div>
                             @endif
 
@@ -193,6 +199,9 @@
                                         @endif
                                         @if ($v->notes)
                                             <div class="sm:col-span-2"><span class="text-gray-500">{{ __('Vitals notes') }}</span> {{ $v->notes }}</div>
+                                        @endif
+                                        @if ($v->lab_notes)
+                                            <div class="sm:col-span-2"><span class="text-gray-500">{{ __('Lab comment') }}</span> {{ $v->lab_notes }}</div>
                                         @endif
                                     </dl>
                                 @endif

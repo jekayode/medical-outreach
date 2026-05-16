@@ -8,6 +8,7 @@ use App\Enums\LabOrderStatus;
 use App\Enums\OutreachStatus;
 use App\Models\Intervention;
 use App\Models\LabOrder;
+use App\Models\LabOrderItem;
 use App\Models\Outreach;
 use App\Models\User;
 use App\Models\Visit;
@@ -28,6 +29,10 @@ class Lab extends StationPage
      */
     public array $itemResults = [];
 
+    public string $rapidBloodGlucose = '';
+
+    public string $labComment = '';
+
     public ?string $successMessage = null;
 
     #[On('visit-selected')]
@@ -35,6 +40,8 @@ class Lab extends StationPage
     {
         $this->selectedVisitId = $visitId;
         $this->successMessage = null;
+        $this->rapidBloodGlucose = '';
+        $this->labComment = '';
         $this->resetErrorBag();
         $this->selectedInterventionId = $this->resolveInterventionIdForVisit($visitId);
         $this->hydrateItemResultsFromSelection();
@@ -43,6 +50,8 @@ class Lab extends StationPage
     public function selectQueueIntervention(string $interventionId): void
     {
         $this->successMessage = null;
+        $this->rapidBloodGlucose = '';
+        $this->labComment = '';
         $this->resetErrorBag();
         $this->selectedInterventionId = $interventionId;
         $intervention = Intervention::query()->find($interventionId);
@@ -82,8 +91,10 @@ class Lab extends StationPage
             return;
         }
 
+        $comment = trim($this->labComment) !== '' ? trim($this->labComment) : null;
+
         try {
-            $service->record($intervention, $user, $activeOutreach, $this->itemResults);
+            $service->record($intervention, $user, $activeOutreach, $this->itemResults, $comment);
         } catch (ValidationException $exception) {
             $this->setErrorBag($exception->validator->getMessageBag());
 
@@ -93,7 +104,62 @@ class Lab extends StationPage
         $this->selectedInterventionId = null;
         $this->selectedVisitId = null;
         $this->itemResults = [];
+        $this->labComment = '';
         $this->successMessage = __('Lab results saved. Patient returned to the doctor queue.');
+    }
+
+    public function saveRapidTest(LabResultRecordingService $service): void
+    {
+        $this->resetErrorBag();
+        $this->successMessage = null;
+
+        $activeOutreach = Outreach::query()->where('status', OutreachStatus::Active)->first();
+        if (! $activeOutreach instanceof Outreach) {
+            $this->addError('form', __('There is no active outreach.'));
+
+            return;
+        }
+
+        if (! $this->selectedInterventionId) {
+            $this->addError('form', __('Select a patient from the lab queue or search first.'));
+
+            return;
+        }
+
+        $intervention = Intervention::query()->find($this->selectedInterventionId);
+        if (! $intervention instanceof Intervention) {
+            $this->addError('form', __('Intervention not found.'));
+
+            return;
+        }
+
+        $this->validate([
+            'rapidBloodGlucose' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $user = auth()->user();
+        if (! $user instanceof User) {
+            $this->addError('form', __('You must be signed in.'));
+
+            return;
+        }
+
+        $bloodGlucose = $this->rapidBloodGlucose !== '' ? (float) $this->rapidBloodGlucose : null;
+        $comment = trim($this->labComment) !== '' ? trim($this->labComment) : null;
+
+        try {
+            $service->recordRapidBloodGlucose($intervention, $user, $activeOutreach, $bloodGlucose, $comment);
+        } catch (ValidationException $exception) {
+            $this->setErrorBag($exception->validator->getMessageBag());
+
+            return;
+        }
+
+        $this->selectedInterventionId = null;
+        $this->selectedVisitId = null;
+        $this->rapidBloodGlucose = '';
+        $this->labComment = '';
+        $this->successMessage = __('Rapid test recorded. Patient sent to the doctor queue.');
     }
 
     protected function stationHeading(): string
@@ -142,6 +208,13 @@ class Lab extends StationPage
             $pendingLabItems = $this->pendingLabItems($selectedIntervention);
         }
 
+        $isRapidTestMode = $selectedIntervention instanceof Intervention
+            && $selectedIntervention->type === InterventionType::GeneralConsultation
+            && $selectedIntervention->status === InterventionStatus::AwaitingLab
+            && $selectedIntervention->consultation === null;
+
+        $canRecordRapidTest = $isRapidTestMode;
+
         $canRecord = $selectedIntervention instanceof Intervention
             && $selectedIntervention->type === InterventionType::GeneralConsultation
             && $selectedIntervention->status === InterventionStatus::AwaitingLab
@@ -153,6 +226,8 @@ class Lab extends StationPage
             'queueInterventions' => $queueInterventions,
             'selectedVisit' => $selectedVisit,
             'selectedIntervention' => $selectedIntervention,
+            'isRapidTestMode' => $isRapidTestMode,
+            'canRecordRapidTest' => $canRecordRapidTest,
             'canRecord' => $canRecord,
             'pendingLabItems' => $pendingLabItems,
         ]);
@@ -195,7 +270,7 @@ class Lab extends StationPage
     }
 
     /**
-     * @return Collection<int, \App\Models\LabOrderItem>
+     * @return Collection<int, LabOrderItem>
      */
     private function pendingLabItems(Intervention $intervention): Collection
     {

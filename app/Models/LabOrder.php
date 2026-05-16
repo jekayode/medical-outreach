@@ -16,6 +16,7 @@ class LabOrder extends Model
         'consultation_id',
         'ordered_by_user_id',
         'status',
+        'notes',
     ];
 
     /**

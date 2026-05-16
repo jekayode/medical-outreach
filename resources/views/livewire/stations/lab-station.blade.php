@@ -2,7 +2,7 @@
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div class="mb-6">
             <h1 class="text-2xl font-semibold text-gray-900">{{ __('Lab station') }}</h1>
-            <p class="mt-1 text-sm text-gray-600">{{ __('Record results for ordered tests. Saving returns the patient to the doctor for review.') }}</p>
+            <p class="mt-1 text-sm text-gray-600">{{ __('Record the rapid blood glucose result for new patients, or enter ordered test results for patients returning from the doctor.') }}</p>
         </div>
 
         @if ($successMessage)
@@ -78,9 +78,10 @@
 
                         @if (! $selectedIntervention)
                             <div class="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
-                                {{ __('This visit has no general-consultation line awaiting lab results (or tests are already completed).') }}
+                                {{ __('This visit has no general-consultation line awaiting lab (or tests are already completed).') }}
                             </div>
                         @else
+                            {{-- Vitals summary --}}
                             <div>
                                 <h3 class="text-sm font-semibold text-gray-800 mb-2">{{ __('Vitals') }}</h3>
                                 @if (! $selectedVisit->vitals)
@@ -119,64 +120,132 @@
                                 @endif
                             </div>
 
-                            @if ($selectedIntervention->consultation)
-                                @php($c = $selectedIntervention->consultation)
-                                <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-2">
-                                    <h3 class="text-sm font-semibold text-gray-800">{{ __('Consultation summary') }}</h3>
-                                    <p class="text-sm text-gray-800"><span class="font-medium text-gray-600">{{ __('Chief complaint:') }}</span> {{ $c->chief_complaint }}</p>
-                                    @if ($c->observations)
-                                        <p class="text-sm text-gray-800"><span class="font-medium text-gray-600">{{ __('Observations:') }}</span> {{ $c->observations }}</p>
-                                    @endif
-                                    @if ($c->diagnosis)
-                                        <p class="text-sm text-gray-800"><span class="font-medium text-gray-600">{{ __('Diagnosis:') }}</span> {{ $c->diagnosis }}</p>
-                                    @endif
-                                </div>
-                            @endif
+                            @error('form')
+                                <div class="text-sm text-red-600">{{ $message }}</div>
+                            @enderror
+                            @error('intervention')
+                                <div class="text-sm text-red-600">{{ $message }}</div>
+                            @enderror
 
-                            @if (! $canRecord)
-                                <div class="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
-                                    {{ __('There are no pending tests to enter for this selection.') }}
+                            @if ($isRapidTestMode)
+                                {{-- Pre-doctor rapid blood glucose test --}}
+                                <div class="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+                                    {{ __('This patient is here for the pre-doctor rapid blood glucose test. Record the result below, then send to the doctor queue.') }}
                                 </div>
-                            @else
+
                                 <form
-                                    wire:submit="saveResults"
-                                    wire:confirm="{{ __('Save lab results and return this patient to the doctor for review?') }}"
+                                    wire:submit="saveRapidTest"
+                                    wire:confirm="{{ __('Record rapid test result and send this patient to the doctor queue?') }}"
                                     class="space-y-4"
                                 >
-                                    @error('form')
-                                        <div class="text-sm text-red-600">{{ $message }}</div>
-                                    @enderror
+                                    <div class="max-w-xs">
+                                        <label for="rapid-glucose" class="block text-sm font-medium text-gray-700">
+                                            {{ __('Blood glucose (mmol/L or mg/dL)') }}
+                                        </label>
+                                        <x-text-input
+                                            id="rapid-glucose"
+                                            class="block mt-1 w-full"
+                                            type="number"
+                                            inputmode="decimal"
+                                            step="0.1"
+                                            min="0"
+                                            wire:model="rapidBloodGlucose"
+                                            placeholder="{{ __('Optional') }}"
+                                        />
+                                        <x-input-error :messages="$errors->get('rapidBloodGlucose')" class="mt-2" />
+                                    </div>
 
-                                    <h3 class="text-sm font-semibold text-gray-800">{{ __('Test results') }}</h3>
-                                    <ul class="space-y-4" role="list">
-                                        @foreach ($pendingLabItems as $item)
-                                            <li class="rounded-lg border border-gray-200 p-4" wire:key="item-{{ $item->getKey() }}">
-                                                <div class="font-medium text-gray-900">{{ $item->test_name }}</div>
-                                                @if ($item->notes)
-                                                    <p class="mt-1 text-xs text-gray-500">{{ __('Order notes:') }} {{ $item->notes }}</p>
-                                                @endif
-                                                <label for="res-{{ $item->getKey() }}" class="mt-2 block text-xs font-medium text-gray-600">{{ __('Result') }} <span class="text-red-600">*</span></label>
-                                                <textarea
-                                                    id="res-{{ $item->getKey() }}"
-                                                    wire:model="itemResults.{{ $item->getKey() }}"
-                                                    rows="2"
-                                                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
-                                                ></textarea>
-                                                @error('itemResults.' . $item->getKey())
-                                                    <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                                                @enderror
-                                            </li>
-                                        @endforeach
-                                    </ul>
+                                    <div>
+                                        <label for="rapid-comment" class="block text-sm font-medium text-gray-700">
+                                            {{ __('Comment') }}
+                                        </label>
+                                        <textarea
+                                            id="rapid-comment"
+                                            wire:model="labComment"
+                                            rows="2"
+                                            placeholder="{{ __('Optional — visible to the doctor') }}"
+                                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
+                                        ></textarea>
+                                    </div>
 
                                     <div
                                         class="sticky bottom-0 z-10 -mx-4 mt-6 flex justify-end border-t border-gray-200 bg-white px-4 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] sm:-mx-6 sm:px-6"
                                     >
                                         <x-primary-button type="submit" class="px-6">
-                                            {{ __('Save results & return to doctor') }}
+                                            {{ __('Send to doctor') }}
                                         </x-primary-button>
                                     </div>
                                 </form>
+                            @else
+                                {{-- Post-doctor ordered tests --}}
+                                @if ($selectedIntervention->consultation)
+                                    @php($c = $selectedIntervention->consultation)
+                                    <div class="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-2">
+                                        <h3 class="text-sm font-semibold text-gray-800">{{ __('Consultation summary') }}</h3>
+                                        <p class="text-sm text-gray-800"><span class="font-medium text-gray-600">{{ __('Chief complaint:') }}</span> {{ $c->chief_complaint }}</p>
+                                        @if ($c->observations)
+                                            <p class="text-sm text-gray-800"><span class="font-medium text-gray-600">{{ __('Observations:') }}</span> {{ $c->observations }}</p>
+                                        @endif
+                                        @if ($c->diagnosis)
+                                            <p class="text-sm text-gray-800"><span class="font-medium text-gray-600">{{ __('Diagnosis:') }}</span> {{ $c->diagnosis }}</p>
+                                        @endif
+                                    </div>
+                                @endif
+
+                                @if (! $canRecord)
+                                    <div class="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-900">
+                                        {{ __('There are no pending tests to enter for this selection.') }}
+                                    </div>
+                                @else
+                                    <form
+                                        wire:submit="saveResults"
+                                        wire:confirm="{{ __('Save lab results and return this patient to the doctor for review?') }}"
+                                        class="space-y-4"
+                                    >
+                                        <h3 class="text-sm font-semibold text-gray-800">{{ __('Test results') }}</h3>
+                                        <ul class="space-y-4" role="list">
+                                            @foreach ($pendingLabItems as $item)
+                                                <li class="rounded-lg border border-gray-200 p-4" wire:key="item-{{ $item->getKey() }}">
+                                                    <div class="font-medium text-gray-900">{{ $item->test_name }}</div>
+                                                    @if ($item->notes)
+                                                        <p class="mt-1 text-xs text-gray-500">{{ __('Order notes:') }} {{ $item->notes }}</p>
+                                                    @endif
+                                                    <label for="res-{{ $item->getKey() }}" class="mt-2 block text-xs font-medium text-gray-600">{{ __('Result') }} <span class="text-red-600">*</span></label>
+                                                    <textarea
+                                                        id="res-{{ $item->getKey() }}"
+                                                        wire:model="itemResults.{{ $item->getKey() }}"
+                                                        rows="2"
+                                                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
+                                                    ></textarea>
+                                                    @error('itemResults.' . $item->getKey())
+                                                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                                                    @enderror
+                                                </li>
+                                            @endforeach
+                                        </ul>
+
+                                        <div>
+                                            <label for="ordered-comment" class="block text-sm font-medium text-gray-700">
+                                                {{ __('Comment') }}
+                                            </label>
+                                            <textarea
+                                                id="ordered-comment"
+                                                wire:model="labComment"
+                                                rows="2"
+                                                placeholder="{{ __('Optional — visible to the doctor') }}"
+                                                class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-primary focus:ring-brand-primary sm:text-sm"
+                                            ></textarea>
+                                        </div>
+
+                                        <div
+                                            class="sticky bottom-0 z-10 -mx-4 mt-6 flex justify-end border-t border-gray-200 bg-white px-4 py-4 shadow-[0_-8px_24px_rgba(15,23,42,0.06)] sm:-mx-6 sm:px-6"
+                                        >
+                                            <x-primary-button type="submit" class="px-6">
+                                                {{ __('Save results & return to doctor') }}
+                                            </x-primary-button>
+                                        </div>
+                                    </form>
+                                @endif
                             @endif
                         @endif
                     </div>

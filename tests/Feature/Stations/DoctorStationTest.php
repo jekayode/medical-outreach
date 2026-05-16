@@ -232,6 +232,41 @@ class DoctorStationTest extends TestCase
         $this->assertSame(InterventionStatus::AwaitingPharmacy, $intervention->fresh()->status);
     }
 
+    public function test_doctor_consultation_service_rejects_counselling_next_action(): void
+    {
+        ['outreach' => $outreach, 'doctor' => $doctor, 'intervention' => $intervention] = $this->outreachVisitDoctorAndIntervention();
+
+        $this->expectException(ValidationException::class);
+
+        app(DoctorConsultationService::class)->save(
+            $intervention,
+            $doctor,
+            $outreach,
+            [
+                'chief_complaint' => 'Anxiety',
+                'observations' => null,
+                'diagnosis' => null,
+                'notes' => null,
+            ],
+            ConsultationNextAction::Counselling,
+            [],
+            [],
+        );
+    }
+
+    public function test_doctor_livewire_does_not_include_counselling_in_next_action_options(): void
+    {
+        ['visit' => $visit, 'doctor' => $doctor, 'intervention' => $intervention] = $this->outreachVisitDoctorAndIntervention();
+
+        $html = Livewire::actingAs($doctor)
+            ->test(Doctor::class)
+            ->set('selectedVisitId', $visit->getKey())
+            ->set('selectedInterventionId', $intervention->getKey())
+            ->html();
+
+        $this->assertStringNotContainsString(ConsultationNextAction::Counselling->value, $html);
+    }
+
     public function test_partner_medication_suggestions_config_lists_partner_drugs(): void
     {
         $labels = config('partner_medication_suggestions.labels');
