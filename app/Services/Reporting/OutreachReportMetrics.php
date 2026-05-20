@@ -17,6 +17,7 @@ use App\Models\Vitals;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 final class OutreachReportMetrics
 {
@@ -42,6 +43,58 @@ final class OutreachReportMetrics
             'interventions_delivered' => $this->interventionsDeliveredCount($outreachId),
             'drugs_dispensed' => $this->dispensedPrescriptionItemsCount($outreachId),
             'lab_tests_completed' => $this->completedLabOrderItemsCount($outreachId),
+        ];
+    }
+
+    /**
+     * Impact summary numbers for the donor/stakeholder report.
+     *
+     * - `total_checked_in`    : total number of visit records (one per check-in)
+     * - `general_care`        : visits with a delivered GeneralConsultation intervention
+     * - `dental_care`         : visits with a delivered DentalCare intervention
+     * - `eye_care`            : visits with a delivered EyeCare intervention
+     * - `all_interventions`   : visits where all three types were delivered
+     *
+     * @return array{
+     *     total_checked_in: int,
+     *     general_care: int,
+     *     dental_care: int,
+     *     eye_care: int,
+     *     all_interventions: int
+     * }
+     */
+    public function impactSummary(?string $outreachId): array
+    {
+        $outreachId = $this->normalizeOutreachId($outreachId);
+        $delivered = $this->interventionStatusesCountedAsDelivered();
+
+        $byType = fn (InterventionType $type): int => (int) Intervention::query()
+            ->whereIn('status', $delivered)
+            ->where('type', $type)
+            ->whereHas('visit', fn (Builder $q) => $this->scopeVisitToOutreach($q, $outreachId))
+            ->count();
+
+        $allThree = (int) Visit::query()
+            ->when($outreachId !== null, fn (Builder $q) => $q->where('outreach_id', $outreachId))
+            ->whereHas('interventions', fn (Builder $q) => $q
+                ->where('type', InterventionType::GeneralConsultation)
+                ->whereIn('status', $delivered))
+            ->whereHas('interventions', fn (Builder $q) => $q
+                ->where('type', InterventionType::DentalCare)
+                ->whereIn('status', $delivered))
+            ->whereHas('interventions', fn (Builder $q) => $q
+                ->where('type', InterventionType::EyeCare)
+                ->whereIn('status', $delivered))
+            ->count();
+
+        return [
+            'total_checked_in' => (int) Visit::query()
+                ->when($outreachId !== null, fn (Builder $q) => $q->where('outreach_id', $outreachId))
+                ->count(),
+            'general_care' => $byType(InterventionType::GeneralConsultation),
+            'dental_care' => $byType(InterventionType::DentalCare),
+            'eye_care' => $byType(InterventionType::EyeCare),
+            'all_interventions' => $allThree,
         ];
     }
 
@@ -170,7 +223,7 @@ final class OutreachReportMetrics
         }
 
         return [
-            'labels' => $rows->keys()->map(fn (string $k): string => \Illuminate\Support\Str::limit($k, 48))->values()->all(),
+            'labels' => $rows->keys()->map(fn (string $k): string => Str::limit($k, 48))->values()->all(),
             'data' => $rows->values()->map(fn ($v): int => (int) $v)->all(),
         ];
     }
@@ -196,7 +249,7 @@ final class OutreachReportMetrics
         }
 
         return [
-            'labels' => $rows->keys()->map(fn (string $k): string => \Illuminate\Support\Str::limit($k, 48))->values()->all(),
+            'labels' => $rows->keys()->map(fn (string $k): string => Str::limit($k, 48))->values()->all(),
             'data' => $rows->values()->map(fn ($v): int => (int) $v)->all(),
         ];
     }
