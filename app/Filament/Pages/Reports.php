@@ -16,6 +16,7 @@ use App\Filament\Widgets\Reports\ReportTopDrugsChartWidget;
 use App\Models\Outreach;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -24,11 +25,9 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Widgets\Widget;
 use Filament\Widgets\WidgetConfiguration;
 use Illuminate\Contracts\Support\Htmlable;
-use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class Reports extends Page
 {
@@ -37,6 +36,19 @@ class Reports extends Page
     protected static ?int $navigationSort = 10;
 
     public ?string $outreachId = null;
+
+    public function mount(): void
+    {
+        $message = session()->pull('backup_error');
+
+        if (is_string($message) && $message !== '') {
+            Notification::make()
+                ->title(__('Database backup failed'))
+                ->body($message)
+                ->danger()
+                ->send();
+        }
+    }
 
     public static function getNavigationLabel(): string
     {
@@ -67,8 +79,8 @@ class Reports extends Page
                 ->modalHeading(__('Download database backup'))
                 ->modalDescription(__('This will create a full database backup and download it to your device. Use this to keep a local copy of all outreach data.'))
                 ->modalSubmitActionLabel(__('Download'))
-                ->action(function (): BinaryFileResponse|StreamedResponse {
-                    return $this->buildDatabaseDownload();
+                ->action(function (): void {
+                    $this->redirectRoute('admin.database-backup.download');
                 }),
             Action::make('exportExcel')
                 ->label(__('Export to Excel'))
@@ -88,52 +100,6 @@ class Reports extends Page
                     );
                 }),
         ];
-    }
-
-    private function buildDatabaseDownload(): BinaryFileResponse|StreamedResponse
-    {
-        $default = (string) config('database.default');
-        $connection = config("database.connections.{$default}");
-        $driver = is_array($connection) ? ($connection['driver'] ?? null) : null;
-
-        if ($driver === 'mysql') {
-            \Artisan::call('database:backup');
-
-            $dir = storage_path('backups');
-            $files = File::glob($dir.'/medical-outreach-*.sql.gz');
-
-            if (empty($files)) {
-                abort(500, 'Backup file not found after running database:backup.');
-            }
-
-            usort($files, fn (string $a, string $b): int => filemtime($b) - filemtime($a));
-            $latest = $files[0];
-
-            return response()->download(
-                $latest,
-                'medical-outreach-backup-'.now()->format('Y-m-d-His').'.sql.gz',
-                ['Content-Type' => 'application/gzip']
-            );
-        }
-
-        if ($driver === 'sqlite') {
-            $dbPath = is_array($connection) ? ($connection['database'] ?? null) : null;
-            if (! $dbPath || ! file_exists($dbPath)) {
-                abort(500, 'SQLite database file not found.');
-            }
-
-            $filename = 'medical-outreach-backup-'.now()->format('Y-m-d-His').'.sqlite';
-
-            return response()->streamDownload(
-                function () use ($dbPath): void {
-                    readfile($dbPath);
-                },
-                $filename,
-                ['Content-Type' => 'application/octet-stream']
-            );
-        }
-
-        abort(500, "Database download is not supported for the '{$driver}' driver.");
     }
 
     /**

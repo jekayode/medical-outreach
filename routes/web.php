@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\DatabaseBackupDownloadController;
 use App\Http\Controllers\DashboardRedirectController;
 use App\Livewire\Stations\CheckIn;
 use App\Livewire\Stations\Counselling;
@@ -20,6 +21,10 @@ Route::get('/dashboard', DashboardRedirectController::class)
 Route::view('profile', 'profile')
     ->middleware(['auth'])
     ->name('profile');
+
+Route::get('/admin/database-backup/download', DatabaseBackupDownloadController::class)
+    ->middleware(['auth', 'role:admin'])
+    ->name('admin.database-backup.download');
 
 Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('/stations/check-in', CheckIn::class)->middleware('role:check_in')->name('stations.check-in');
